@@ -1,0 +1,6 @@
+{
+  "name": "QuotePilot AI",
+  "description": "Precision sales automation SaaS for creating AI quotations, managing invoices, products, and customers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
