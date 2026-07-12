@@ -14,26 +14,36 @@ import {
   CheckCircle2,
   Sparkles,
   Zap,
-  Globe
+  Globe,
+  AlertCircle
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface LoginViewProps {
   onLogin: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('arjun@quantumdynamics.in');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setIsLoading(true);
-    // Simulate real high-speed workspace authentication
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin();
-    }, 850);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    onLogin();
   };
 
   return (
@@ -175,6 +185,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </label>
             </div>
 
+            {errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2 px-3.5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-medium"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </motion.div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
@@ -204,7 +225,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           </div>
 
           <button
-            onClick={onLogin}
+            type="button"
+            onClick={() => setErrorMessage('Google Workspace SSO is not configured for this workspace yet. Please sign in with email and password.')}
             className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-medium py-3 px-4 rounded-xl text-sm transition-all shadow-sm"
           >
             {/* Google Vector Icon */}

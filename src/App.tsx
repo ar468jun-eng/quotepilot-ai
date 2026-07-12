@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './lib/supabaseClient';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginView } from './components/LoginView';
@@ -22,15 +24,12 @@ import { ScreenType, Invoice, Product, Customer } from './types';
 import { MOCK_INVOICES, MOCK_PRODUCTS, MOCK_CUSTOMERS } from './data';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    // Check local storage so the session is preserved during review
-    const saved = localStorage.getItem('quotepilot_session');
-    return saved === 'active';
-  });
+  // Real auth state, sourced from Supabase rather than a local storage flag.
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const isLoggedIn = !!session;
 
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>(() => {
-    return isLoggedIn ? 'dashboard' : 'login';
-  });
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>('dashboard');
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -54,16 +53,32 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Load the existing Supabase session (e.g. on page refresh) and keep it in
+  // sync going forward. This replaces the old localStorage flag entirely.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Session Login/Logout Handlers
   const handleLogin = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('quotepilot_session', 'active');
+    // The Supabase auth listener above already updates `session`; this just
+    // moves the user straight into the workspace shell.
     setCurrentScreen('dashboard');
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('quotepilot_session');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentScreen('login');
   };
 
@@ -169,6 +184,15 @@ export default function App() {
         return { title: 'QuotePilot AI Workspace', subtitle: 'Precision sales automation console' };
     }
   };
+
+  // Waiting on the initial Supabase session check
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   // Logged-out layout
   if (!isLoggedIn) {
